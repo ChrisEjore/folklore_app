@@ -1,159 +1,228 @@
 package com.example.bedtimestories.ui.reader
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.FormatSize
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.example.bedtimestories.data.local.FolkloreLibrary
 import com.example.bedtimestories.data.local.SampleStory
 import com.example.bedtimestories.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StoryDetailScreen(
-    story: SampleStory,
-    onBackClick: () -> Unit,
-    onRecordOwnVoice: () -> Unit
+fun StoryLibraryScreen(
+    onStoryClick: (SampleStory) -> Unit,
+    onNavigateToCreate: () -> Unit,
+    onNavigateToRecord: () -> Unit
 ) {
-    var isPlayingNarration by remember { mutableStateOf(false) }
-    var fontSizeSp by remember { mutableStateOf(18) }
-    var showFontSlider by remember { mutableStateOf(false) }
+    var maxAge by remember { mutableStateOf(18) }
+    var showAgePicker by remember { mutableStateOf(false) }
+
+    val filteredStories = FolkloreLibrary.stories.filter { it.minAge <= maxAge }
+    val genres = listOf("Fables", "Myths", "Action", "Adventure", "Thriller", "Horror", "Romance")
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(story.title, color = WarmAmber, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = CreamPaper)
-                    }
-                },
+                title = { Text("Bedtime Stories", color = WarmAmber, fontWeight = FontWeight.Bold) },
                 actions = {
-                    // Text Size Toggle Button
-                    IconButton(onClick = { showFontSlider = !showFontSlider }) {
-                        Icon(Icons.Default.FormatSize, contentDescription = "Adjust Font Size", tint = CreamPaper)
-                    }
-                    // Record Custom Voice Button
-                    IconButton(onClick = onRecordOwnVoice) {
-                        Icon(Icons.Default.RecordVoiceOver, contentDescription = "Record Voice", tint = SunsetOrange)
+                    IconButton(onClick = { showAgePicker = true }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Parental Controls", tint = CreamPaper)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MidnightSky)
             )
         },
-        bottomBar = {
-            // Audio Narration Control Bar
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = CardNavy,
-                shadowElevation = 8.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+        floatingActionButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                FloatingActionButton(
+                    onClick = onNavigateToRecord,
+                    containerColor = SunsetOrange,
+                    contentColor = MidnightSky,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Audio Narrator", color = WarmAmber, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text(
-                            if (isPlayingNarration) "Playing narration..." else "Tap play to listen to bedtime audio",
-                            color = CreamPaper.copy(alpha = 0.7f),
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { isPlayingNarration = !isPlayingNarration },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(if (isPlayingNarration) SunsetOrange else SavannahGreen)
-                    ) {
-                        Icon(
-                            imageVector = if (isPlayingNarration) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlayingNarration) "Pause" else "Play",
-                            tint = MidnightSky
-                        )
-                    }
+                    Icon(Icons.Default.Mic, contentDescription = "Record Voice")
+                }
+                FloatingActionButton(
+                    onClick = onNavigateToCreate,
+                    containerColor = SavannahGreen,
+                    contentColor = MidnightSky
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Create Story")
                 }
             }
         },
         containerColor = MidnightSky
     ) { innerPadding ->
-        Column(
+        if (showAgePicker) {
+            AlertDialog(
+                onDismissRequest = { showAgePicker = false },
+                title = { Text("Parental Controls", color = MidnightSky) },
+                text = {
+                    Column {
+                        Text("Show stories for age up to: $maxAge", color = MidnightSky)
+                        Slider(
+                            value = maxAge.toFloat(),
+                            onValueChange = { maxAge = it.toInt() },
+                            valueRange = 3f..18f
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showAgePicker = false }) {
+                        Text("Done")
+                    }
+                }
+            )
+        }
+
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp)
+                .padding(innerPadding),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            // Font Size Adjustment Control (Collapsible)
-            AnimatedVisibility(visible = showFontSlider) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardNavy),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            // User Stories Section (Recorded & Written)
+            val userStories = filteredStories.filter { it.isUserCreated }
+            if (userStories.isNotEmpty()) {
+                item {
+                    SectionHeader("Your Recordings & Creations")
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("Text Size", color = CreamPaper, fontSize = 14.sp, modifier = Modifier.padding(end = 12.dp))
-                        Slider(
-                            value = fontSizeSp.toFloat(),
-                            onValueChange = { fontSizeSp = it.toInt() },
-                            valueRange = 14f..32f,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text("${fontSizeSp}sp", color = WarmAmber, fontSize = 14.sp, modifier = Modifier.padding(start = 12.dp))
+                        items(userStories, key = { it.id }) { story ->
+                            StoryThumbnail(
+                                story = story, 
+                                onClick = { onStoryClick(story) },
+                                onDeleteClick = { FolkloreLibrary.deleteStory(story.id) }
+                            )
+                        }
                     }
                 }
             }
 
-            // Reader Document Content
-            Column(
+            // Genre Sections
+            genres.forEach { genre ->
+                val genreStories = filteredStories.filter { it.genre == genre }
+                if (genreStories.isNotEmpty()) {
+                    item {
+                        SectionHeader(genre)
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(genreStories, key = { it.id }) { story ->
+                                StoryThumbnail(story = story, onClick = { onStoryClick(story) })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        color = CreamPaper,
+        fontSize = 20.sp,
+        fontWeight = FontWeight.ExtraBold,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+fun StoryThumbnail(
+    story: SampleStory, 
+    onClick: () -> Unit,
+    onDeleteClick: (() -> Unit)? = null
+) {
+    Card(
+        modifier = Modifier
+            .width(160.dp)
+            .height(220.dp)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = CardNavy),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column {
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 16.dp)
+                    .fillMaxWidth()
+                    .height(140.dp)
             ) {
-                Text(
-                    text = "${story.iconEmoji} ${story.origin}",
-                    color = SavannahGreen,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
+                AsyncImage(
+                    model = story.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
+                
+                // Genre badge
+                Surface(
+                    modifier = Modifier.padding(8.dp).align(Alignment.TopEnd),
+                    color = MidnightSky.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = story.genre,
+                        color = WarmAmber,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
+                if (onDeleteClick != null) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.align(Alignment.TopStart).size(32.dp).background(MidnightSky.copy(alpha = 0.5f), RoundedCornerShape(bottomEnd = 8.dp))
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = RecordRed, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+            
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
-                    text = story.content,
+                    text = story.title,
                     color = CreamPaper,
-                    fontSize = fontSizeSp.sp,
-                    lineHeight = (fontSizeSp * 1.5).sp,
-                    fontWeight = FontWeight.Normal
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2
                 )
-
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(story.iconEmoji, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Age ${story.minAge}+",
+                        color = SavannahGreen,
+                        fontSize = 10.sp
+                    )
+                }
             }
         }
     }

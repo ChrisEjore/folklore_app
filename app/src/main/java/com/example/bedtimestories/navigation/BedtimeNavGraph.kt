@@ -21,7 +21,9 @@ sealed class NavRoute(val route: String) {
         fun createRoute(storyId: String) = "story_detail/$storyId"
     }
     object StoryCreation : NavRoute("story_creation")
-    object VoiceRecorder : NavRoute("voice_recorder")
+    object VoiceRecorder : NavRoute("voice_recorder?storyId={storyId}") {
+        fun createRoute(storyId: String? = null) = if (storyId != null) "voice_recorder?storyId=$storyId" else "voice_recorder"
+    }
 }
 
 @Composable
@@ -34,7 +36,6 @@ fun BedtimeNavGraph() {
             startDestination = NavRoute.Library.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            // Story Library Feed
             composable(NavRoute.Library.route) {
                 StoryLibraryScreen(
                     onStoryClick = { story ->
@@ -44,42 +45,49 @@ fun BedtimeNavGraph() {
                         navController.navigate(NavRoute.StoryCreation.route)
                     },
                     onNavigateToRecord = {
-                        navController.navigate(NavRoute.VoiceRecorder.route)
+                        navController.navigate(NavRoute.VoiceRecorder.createRoute())
                     }
                 )
             }
 
-            // Reader & Narrator View
             composable(
                 route = NavRoute.StoryDetail.route,
                 arguments = listOf(navArgument("storyId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val storyId = backStackEntry.arguments?.getString("storyId")
-                val story = FolkloreLibrary.stories.find { it.id == storyId }
-                    ?: FolkloreLibrary.stories.first()
+                val story = FolkloreLibrary.stories.find { it.id == storyId } ?: FolkloreLibrary.stories.first()
 
                 StoryDetailScreen(
                     story = story,
                     onBackClick = { navController.popBackStack() },
-                    onRecordOwnVoice = { navController.navigate(NavRoute.VoiceRecorder.route) }
+                    onRecordOwnVoice = { navController.navigate(NavRoute.VoiceRecorder.createRoute(story.id)) }
                 )
             }
 
-            // AI Generator Screen
             composable(NavRoute.StoryCreation.route) {
                 StoryCreationScreen(
+                    onBackClick = { navController.popBackStack() },
                     onStoryGenerated = { storyId ->
-                        navController.navigate(NavRoute.StoryDetail.createRoute(storyId))
+                        navController.navigate(NavRoute.StoryDetail.createRoute(storyId)) {
+                            popUpTo(NavRoute.Library.route)
+                        }
                     }
                 )
             }
 
-            // Voice Studio Screen
-            composable(NavRoute.VoiceRecorder.route) {
+            composable(
+                route = NavRoute.VoiceRecorder.route,
+                arguments = listOf(navArgument("storyId") { 
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                })
+            ) { backStackEntry ->
+                val storyId = backStackEntry.arguments?.getString("storyId")
                 VoiceRecorderScreen(
-                    onRecordingFinished = {
-                        navController.popBackStack()
-                    }
+                    storyId = storyId,
+                    onBackClick = { navController.popBackStack() },
+                    onRecordingFinished = { navController.popBackStack() }
                 )
             }
         }
